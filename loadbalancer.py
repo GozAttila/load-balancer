@@ -1,7 +1,7 @@
-import threading
 import queue
 import random
 from colorama import Fore, Style
+import threading
 from threading import Thread
 from multiprocessing import Pool
 from collections import OrderedDict
