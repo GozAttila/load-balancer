@@ -7,6 +7,8 @@
 # requests/results. Using Threads in the provider. No Heartbeat checker -> a callback function handle this in real time,
 # no waiting for the Heartbeat checker tick. When a provider queue is full, set it's availability to False in the
 # Load balancers provider list, and turn it back to True when the list become empty.
+#
+# Update: I had a misunderstanding about the real function of the Heartbeat. Added Heartbeat function.
 
 from time import sleep
 
@@ -67,3 +69,4 @@ while True:
 
 print("Finished.")
 print("Received results: ", counter)
+

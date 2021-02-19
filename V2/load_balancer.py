@@ -1,4 +1,5 @@
 import queue
+import threading
 from collections import OrderedDict
 
 from provider import Provider
@@ -12,6 +13,8 @@ class LoadBalancer:
         self.provider_list = OrderedDict()
         self.number_of_providers = number_of_providers
         self.position = 0
+        self.heartbeat_interval = 1
+        self.heartbeat_timer()
 
     def get(self, request_id):
         if not self.provider_list:
@@ -69,7 +72,8 @@ class LoadBalancer:
                 "ip": provider_ip,
                 "status": True,
                 "active": True,
-                "capacity": provider_capacity
+                "capacity": provider_capacity,
+                "standby": False
             }
             self.queue_size += provider_capacity
             print("Provider added. Id: {id}".format(id=provider_id))
@@ -113,3 +117,47 @@ class LoadBalancer:
             return result
         except queue.Empty:
             return None
+
+    def set_provider_heartbeat_status(self, provider_id, status):
+        provider = self.provider_list[provider_id]["provider"]
+        is_provider_active = self.provider_list[provider_id]["active"]
+        is_provider_standby = self.provider_list[provider_id]["standby"]
+        if not status:
+            self.provider_list[provider_id]["standby"] = False
+            if is_provider_active:
+                self.change_provider_activity(provider)
+        elif not is_provider_standby and not is_provider_active:
+            self.provider_list[provider_id]["standby"] = True
+        elif is_provider_standby and not is_provider_active:
+            self.change_provider_activity(provider)
+            self.provider_list[provider_id]["standby"] = False
+
+    def check_if_provider_is_alive(self, provider_id):
+        provider = self.provider_list[provider_id]["provider"]
+        provider.check()
+
+    def heartbeat_checker(self):
+        for provider_id in self.provider_list:
+            provider_is_alive = threading.Thread(target=self.check_if_provider_is_alive, args=(provider_id,),
+                                                 daemon=True)
+            provider_is_alive.start()
+            provider_is_alive.join(timeout=0.5)
+            valid_response_from_provider = provider_is_alive.is_alive()
+            print("in HB checker", valid_response_from_provider)
+            if valid_response_from_provider:
+                test_text = "alive"
+            else:
+                test_text = "not responsive"
+            print("{id} is {status}".format(id=provider_id, status=test_text))
+
+    def heartbeat_timer(self):
+        def set_interval(sec):
+            def func_wrapper():
+                set_interval(sec)
+                self.heartbeat_checker()
+
+            t = threading.Timer(sec, func_wrapper)
+            t.start()
+            return t
+
+        timer = set_interval(self.heartbeat_interval)
