@@ -5,6 +5,7 @@ import uuid
 from time import sleep
 
 
+# [Step 1]
 class Provider:
     def __init__(self, ip, capacity):
         self.provider_status_report = None
@@ -56,7 +57,7 @@ class Provider:
         self.incoming_queue.task_done()
         self.result_function(result)
         if self.queue_counter <= 0:
-            print("provider queue empty")
+            print("provider queue empty\n")
             self.self_check(True)
 
     # For simulation

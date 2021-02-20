@@ -1,4 +1,5 @@
 import queue
+import random
 import threading
 from collections import OrderedDict
 
@@ -16,10 +17,12 @@ class LoadBalancer:
         self.heartbeat_interval = 1
         self.heartbeat_timer()
 
+    # [Step 4] Round-robin invocation
     def get(self, request_id):
         if not self.provider_list:
             print("Provider list empty, add a provider first.")
             return "No provider."
+        # [Step 8] Cluster Capacity Limit
         elif self.actual_queue >= self.queue_size:
             print("Queue full.")
             return "Queue full."
@@ -31,6 +34,21 @@ class LoadBalancer:
             else:
                 provider = self.provider_list[next_provider_id]["provider"]
                 provider.get(request_id)
+
+    # [Step 3] Double code :/ If it become a real code, this random invocation have no place here anyway, so I don't
+    # want to mess the good code in the 'get()' function and move the first two check to another function from it
+    def get_random(self, request_id):
+        if not self.provider_list:
+            print("Provider list empty, add a provider first.")
+            return "No provider."
+        # [Step 8] Cluster Capacity Limit
+        elif self.actual_queue >= self.queue_size:
+            print("Queue full.")
+            return "Queue full."
+        else:
+            next_provider_id = random.choice(list(self.provider_list.keys()))
+            provider = self.provider_list[next_provider_id]["provider"]
+            provider.get(request_id)
 
     def find_next_available_provider(self):
         check_turn = 0
@@ -48,7 +66,7 @@ class LoadBalancer:
         print("No active and/or free provider found in 3 full check.")
         return False
 
-    # Check the input type (list or simple provider)
+    # [Step 2] Check the input type (list or simple provider)
     def register_provider(self, provider_registree):
         if type(provider_registree) == Provider:
             self.add_provider(provider_registree)
@@ -56,6 +74,7 @@ class LoadBalancer:
             for provider in provider_registree:
                 self.add_provider(provider)
 
+    # [Step 2]
     def add_provider(self, provider):
         provider_info = provider.get_provider_info()
         provider_id = provider_info["id"]
@@ -93,6 +112,7 @@ class LoadBalancer:
         # find provider by Id in provider dict and set availability to status
         self.provider_list[provider_id][stat] = provider_status
 
+    # [Step 5] Manual node exclusion / inclusion
     def change_provider_activity(self, provider):
         provider_info = provider.get_info()
         provider_id = provider_info["id"]
@@ -113,11 +133,16 @@ class LoadBalancer:
     def get_result(self):
         try:
             result = self.result_queue.get(timeout=1)
-            print(result)
+            # print(result)
             return result
         except queue.Empty:
             return None
 
+    def check_if_provider_is_alive(self, provider_id):
+        provider = self.provider_list[provider_id]["provider"]
+        provider.check()
+
+    # [Step 6 & 7] Heartbeat checker
     def set_provider_heartbeat_status(self, provider_id, status):
         provider = self.provider_list[provider_id]["provider"]
         is_provider_active = self.provider_list[provider_id]["active"]
@@ -132,24 +157,16 @@ class LoadBalancer:
             self.change_provider_activity(provider)
             self.provider_list[provider_id]["standby"] = False
 
-    def check_if_provider_is_alive(self, provider_id):
-        provider = self.provider_list[provider_id]["provider"]
-        provider.check()
-
+    # [Step 6 & 7] Heartbeat checker
     def heartbeat_checker(self):
+        print("Heartbeat check tick")
         for provider_id in self.provider_list:
             provider_is_alive = threading.Thread(target=self.check_if_provider_is_alive, args=(provider_id,),
                                                  daemon=True)
             provider_is_alive.start()
             provider_is_alive.join(timeout=0.5)
-            valid_response_from_provider = provider_is_alive.is_alive()
-            print("in HB checker", valid_response_from_provider)
-            if valid_response_from_provider:
-                test_text = "alive"
-            else:
-                test_text = "not responsive"
-            print("{id} is {status}".format(id=provider_id, status=test_text))
 
+    # [Step 6 & 7] Heartbeat checker
     def heartbeat_timer(self):
         def set_interval(sec):
             def func_wrapper():

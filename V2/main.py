@@ -9,6 +9,8 @@
 # Load balancers provider list, and turn it back to True when the list become empty.
 #
 # Update: I had a misunderstanding about the real function of the Heartbeat. Added Heartbeat function.
+#
+# Update 2: To fulfill all the points of the exercise, I added random invocation
 
 from time import sleep
 
@@ -19,6 +21,7 @@ load_balancer = LoadBalancer(10)
 
 load_balancer.get("Test_empty")
 
+# [Step 1]
 provider1 = Provider("1.2.3.4", 10)
 provider2 = Provider("2.3.4.5", 10)
 provider3 = Provider("3.4.5.6", 10)
@@ -34,10 +37,12 @@ provider11 = Provider("1.2.3.5", 10)
 provider_list = [provider1, provider2, provider3, provider4, provider5, provider6, provider7, provider8, provider9,
                  provider10, provider11]
 
+# [Step 2]
 load_balancer.register_provider(provider1)
 
 load_balancer.get("Test_one_provider")
 
+# [Step 2]
 load_balancer.register_provider(provider_list)
 
 # Feed 100 + 1 request into loader, expect one refuse as all providers full
@@ -46,7 +51,7 @@ for x in range(100):
     request_id = "Request ID-{id}".format(id=x)
     result = load_balancer.get(request_id)
     if result is not None:
-        print(result)
+        print("From request", result)
 
 # counter for counting the results and none_counter to quit from the while loop
 counter = 0
@@ -59,7 +64,7 @@ sleep(5)
 while True:
     result = load_balancer.get_result()
     if result is not None:
-        print(result)
+        print("Get result: {result}".format(result=result))
     if result:
         counter += 1
     if result is None:
@@ -69,4 +74,3 @@ while True:
 
 print("Finished.")
 print("Received results: ", counter)
-
